@@ -3,31 +3,23 @@ local loader = require 'lib.love-loader'
 local utl    = require 'lib.utility'
 
 local finishedLoading = false
-local sounds = {}
+local channels_ready = false
+local left_channel = {}
+local right_channel = {}
+
+local freq_table = {
+	'1000Hz', '2000Hz', '3000Hz', '4000Hz', '5000Hz', '6000Hz',
+	'7000Hz', '8000Hz', '9000Hz', '10000Hz', '11000Hz', '12000Hz',
+	'13000Hz', '14000hz', '15000hz', '16000Hz', '17000Hz', '18000Hz',
+	'19000Hz', '20000Hz', '21000Hz', '22000Hz'
+	}
 
 function load_from_loader()
-	loader.newSoundData( sounds, '1000hz', 'soundFiles/1000Hz.wav' )
-	loader.newSoundData( sounds, '2000hz', 'soundFiles/2000Hz.wav' )
-	loader.newSoundData( sounds, '3000hz', 'soundFiles/3000Hz.wav' )
-	loader.newSoundData( sounds, '4000hz', 'soundFiles/4000Hz.wav' )
-	loader.newSoundData( sounds, '5000hz', 'soundFiles/5000Hz.wav' )
-	loader.newSoundData( sounds, '6000hz', 'soundFiles/6000Hz.wav' )
-	loader.newSoundData( sounds, '7000hz', 'soundFiles/7000Hz.wav' )
-	loader.newSoundData( sounds, '8000hz', 'soundFiles/8000Hz.wav' )
-	loader.newSoundData( sounds, '9000hz', 'soundFiles/9000Hz.wav' )
-	loader.newSoundData( sounds, '10000hz', 'soundFiles/10000Hz.wav' )
-	loader.newSoundData( sounds, '11000hz', 'soundFiles/11000Hz.wav' )
-	loader.newSoundData( sounds, '12000hz', 'soundFiles/12000Hz.wav' )
-	loader.newSoundData( sounds, '13000hz', 'soundFiles/13000Hz.wav' )
-	loader.newSoundData( sounds, '14000hz', 'soundFiles/14000Hz.wav' )
-	loader.newSoundData( sounds, '15000hz', 'soundFiles/15000Hz.wav' )
-	loader.newSoundData( sounds, '16000hz', 'soundFiles/16000Hz.wav' )
-	loader.newSoundData( sounds, '17000hz', 'soundFiles/17000Hz.wav' )
-	loader.newSoundData( sounds, '18000hz', 'soundFiles/18000Hz.wav' )
-	loader.newSoundData( sounds, '19000hz', 'soundFiles/19000Hz.wav' )
-	loader.newSoundData( sounds, '20000hz', 'soundFiles/20000Hz.wav' )
-	loader.newSoundData( sounds, '21000hz', 'soundFiles/21000Hz.wav' )
-	loader.newSoundData( sounds, '22000hz', 'soundFiles/22000Hz.wav' )
+
+	for i=1, #freq_table do
+		loader.newSoundData( left_channel, freq_table[i], 'soundFiles/'..freq_table[i]..'.wav' )
+		loader.newSoundData( right_channel, freq_table[i], 'soundFiles/'..freq_table[i]..'.wav' )
+	end
 
   	loader.start(function() finishedLoading = true end)
 end
@@ -36,17 +28,47 @@ function love.load()
 	load_from_loader()
 end
 
+--[[
+function table_walker()
+	return coroutine.create( function(tbl)
+			assert(type(tbl) == 'table')
+			for key, val in pairs(tbl) do coroutine.yield({key, val}) end
+		end )
+end
+
+twalker = table_walker()
+while coroutine.status(twalker) ~= 'dead' do
+	ok, sound_tbl = coroutine.resume(twalker, sounds)
+	if sound_tbl then
+		table.insert(left_channel, sound_tbl)
+	end
+end
+
+for i=1, #left_channel do print(type(left_channel[i][1])) end
+print(#left_channel)
+
+
+]]
+
+function set_channel(channel, Cno)
+	assert(type(channel) == 'table')
+	local amplitude = 0.2
+	for _, sound_data in pairs(channel) do
+		sample_count = sound_data:getSampleCount()
+		for i=1, (sample_count-1) do
+		       sound_data:setSample(2*i+Cno, amplitude)
+	        end
+	end
+end
+
 function play_sound()
-	local Music = sounds['1000hz'] 
-	local sampleCount = Music:getSampleCount()
- 	local amplitude = 0.2
-
-    	for i=1, (sampleCount-1) do
-        	Music:setSample(2*i+1, amplitude)
-    	end
-
- 	local source = love.audio.newSource(Music)
-    	love.audio.play(source)
+	set_channel(left_channel, 1)
+	set_channel(right_channel, 0)
+	channels_ready = true
+--[[
+	local source = love.audio.newSource(left_channel['1000Hz'])
+        love.audio.play(source)
+]]
 end
 
 play_me = utl.exe_times(play_sound, 1)
@@ -61,7 +83,7 @@ function love.update(dt)
 end
 
 function love.draw()
-	if finishedLoading then
+	if finishedLoading and channels_ready then
 		love.graphics.circle('fill', 100, 100, 20, 100)
 	else
     		local percent = 0

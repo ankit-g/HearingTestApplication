@@ -77,6 +77,7 @@ local resourceKinds = {
   soundData = {
     requestKey  = "soundDataPathOrDecoder",
     resourceKey = "soundData",
+    --constructor = love.sound.newSoundData
     constructor = my_sound_data
   },
   imageData = {
@@ -100,7 +101,6 @@ if loaded == true then
     for _,kind in pairs(resourceKinds) do
       local loader = love.thread.getChannel(CHANNEL_PREFIX .. kind.requestKey)
       requestParams = loader:pop()
-
 
       if requestParams then
         resource = kind.constructor(unpack(requestParams))
