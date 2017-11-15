@@ -1,4 +1,5 @@
 --load all the sounds here and
+require ("gooi")
 local loader = require 'lib.love-loader'
 local utl    = require 'lib.utility'
 
@@ -24,8 +25,14 @@ function load_from_loader()
   	loader.start(function() finishedLoading = true end)
 end
 
+function load_gui_components()
+	play_btn = gooi.newButton({ text = "Play", x = 10, y = 10, w = 50, h = 35 })
+	play_btn:onRelease(function() love.audio.play(love.audio.newSource(right_channel['1000Hz'])) end)
+end
+
 function love.load()
 	load_from_loader()
+	load_gui_components()
 end
 
 --[[
@@ -75,6 +82,7 @@ play_me = utl.exe_times(play_sound, 1)
 
 function love.update(dt)
 	-- You must do this on each iteration until all resources are loaded
+	if channels_ready then gooi.update(dt) end
 	if not finishedLoading then
 		loader.update()
 	else
@@ -84,6 +92,7 @@ end
 
 function love.draw()
 	if finishedLoading and channels_ready then
+		gooi.draw()
 		love.graphics.circle('fill', 100, 100, 20, 100)
 	else
     		local percent = 0
@@ -92,4 +101,16 @@ function love.draw()
     		end
     		love.graphics.print(("Loading .. %d%%"):format(percent*100), 100, 100)
 	end
+end
+
+function love.mousereleased(x, y, button) gooi.released() end
+function love.mousepressed(x, y, button)  gooi.pressed() end
+function love.textinput(text) gooi.textinput(text) end
+function love.keyreleased(key, scancode) gooi.keyreleased(key, scancode) end
+
+function love.keypressed(key, scancode, isrepeat)
+    gooi.keypressed(key, scancode, isrepeat)
+    if key == "escape" then
+        love.event.quit()
+    end
 end
