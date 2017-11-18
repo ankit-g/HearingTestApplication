@@ -1,93 +1,95 @@
 require "gooi"
 local class   = require 'middleclass.middleclass'
 local LoveApp = require 'LoveApp'
-local loader  = require 'lib.love-loader'
-local utl     = require 'lib.utility'
+local LoadApp = require 'AppLoader' 
 
-
-local finishedLoading = false
-local channels_ready = false
-local left_channel = {}
-local right_channel = {}
+local current_source_right
+local current_source_left
 
 local freq_table = {
 	'1000Hz',  '2000Hz',  '3000Hz',  '4000Hz',  '5000Hz',  '6000Hz',
 	'7000Hz',  '8000Hz',  '9000Hz',  '10000Hz', '11000Hz', '12000Hz',
-	'13000Hz', '14000hz', '15000hz', '16000Hz', '17000Hz', '18000Hz',
+	'13000Hz', '14000Hz', '15000Hz', '16000Hz', '17000Hz', '18000Hz',
 	'19000Hz', '20000Hz', '21000Hz', '22000Hz'
 	}
 
-function load_from_loader()
+function load_gui_components(self)
+	local play_btn_right = gooi.newButton({ text = "Test Right Ear", x = 690, y = 10, w = 100, h = 35 })
+	play_btn_left = gooi.newButton({ text = "Test Left Ear", x = 10, y = 10, w = 100, h = 35 })
 
-	for i=1, #freq_table do
-		loader.newSoundData( left_channel, freq_table[i], 'soundFiles/'..freq_table[i]..'.wav' )
-		loader.newSoundData( right_channel, freq_table[i], 'soundFiles/'..freq_table[i]..'.wav' )
-	end
+	play_btn_left:onRelease(function()
+				if current_source_left and current_source_left:isPlaying() == true then return end
+					current_source_left = love.audio.newSource(
+						self.left_channel[freq_table[self.current_frequency_left]])
+				--print(string.format("duration %d seconds", current_source_right:getDuration('seconds')))
+				love.audio.play(current_source_left)
+				self.now_playing_left = self.current_frequency_left
+				if self.current_frequency_left == #freq_table then
+					self.current_frequency_left = 1 
+				else
+					self.current_frequency_left = self.current_frequency_left + 1
+				end
+			   end)
 
-  	loader.start(function() finishedLoading = true end)
-end
 
-function load_gui_components()
-	play_btn = gooi.newButton({ text = "Play", x = 10, y = 10, w = 50, h = 35 })
-	play_btn:onRelease(function() love.audio.play(love.audio.newSource(right_channel['1000Hz'])) end)
+	play_btn_right:onRelease(function()
+				if current_source_right and current_source_right:isPlaying() == true then return end
+					current_source_right = love.audio.newSource(
+						self.right_channel[freq_table[self.current_frequency_right]])
+				--print(string.format("duration %d seconds", current_source_right:getDuration('seconds')))
+				love.audio.play(current_source_right)
+				self.now_playing_right = self.current_frequency_right
+				if self.current_frequency_right == #freq_table then
+					self.current_frequency_right = 1 
+				else
+					self.current_frequency_right = self.current_frequency_right + 1
+				end
+			   end)
 end
 
 local AudioGram = LoveApp:subclass('AudioGram')
 
 function AudioGram:initialize()
 	LoveApp:initialize()
+	self.freq_loader = LoadApp:new(freq_table, 0.2)
+	self.channels_loaded = false
+	self.left_channel = {}
+	self.right_channel = {}
+	self.current_frequency_right = 1
+	self.current_frequency_left= 1
+	self.now_playing_left = false 
+	self.now_playing_right = false 
 end
 
 function AudioGram:load()
-	load_from_loader()
-	load_gui_components()
+	load_gui_components(self)
+	self.freq_loader:load_sound()
 end
-
-function set_channel(channel, Cno)
-	assert(type(channel) == 'table')
-	local amplitude = 0.2
-	for _, sound_data in pairs(channel) do
-		sample_count = sound_data:getSampleCount()
-		for i=1, (sample_count-1) do
-		       sound_data:setSample(2*i+Cno, amplitude)
-	        end
-	end
-end
-
-function play_sound()
-	set_channel(left_channel, 1)
-	set_channel(right_channel, 0)
-	channels_ready = true
---[[
-	local source = love.audio.newSource(left_channel['1000Hz'])
-        love.audio.play(source)
-]]
-end
-
-play_me = utl.exe_times(play_sound, 1)
 
 function AudioGram:update(dt)
 	-- You must do this on each iteration until all resources are loaded
-	if channels_ready then gooi.update(dt) end
-	if not finishedLoading then
-		loader.update()
-	else
-		play_me()
-	end
+	gooi.update(dt)
+	self.freq_loader:update(dt)
+	if self.freq_loader:has_finished_loading() == true and
+			self.channels_loaded == false then
+		self.left_channel = self.freq_loader:get_left_ch()
+		self.right_channel = self.freq_loader:get_right_ch()
+		self.channels_loaded = true
+	end	
 end
 
 function AudioGram:draw()
-	if finishedLoading and channels_ready then
-		gooi.draw()
-		love.graphics.circle('fill', 100, 100, 20, 100)
-	else
-    		local percent = 0
-		if loader.resourceCount ~= 0 then
-	    		percent = loader.loadedCount / loader.resourceCount
-    		end
-    		love.graphics.print(("Loading .. %d%%"):format(percent*100), 100, 100)
+	self.freq_loader:draw()	
+	gooi.draw()
+	if self.now_playing_left then
+	love.graphics.print('now playing '..freq_table[self.now_playing_left]..' left', 20, 180)
 	end
+	love.graphics.print('next sound '..freq_table[self.current_frequency_left]..' left', 20, 200)
 
+	if self.now_playing_right then
+	love.graphics.print('now playing '..freq_table[self.now_playing_right]..' right', 640, 180)
+	end
+	love.graphics.print('next sound '..freq_table[self.current_frequency_right]..' right', 640, 200)
 end
 
 
